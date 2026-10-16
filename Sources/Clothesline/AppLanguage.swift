@@ -17,6 +17,7 @@ enum AppLanguage: String, CaseIterable {
         current == .english ? (englishLabels[text] ?? text) : text
     }
     static let englishLabels: [String: String] = [
+        "悬停显示晾衣绳延迟…": "Hover to Show Clothesline Delay…", "保留文件时间…": "Item Retention Time…",
         "晾衣绳 · Clothesline": "Clothesline", "一直显示晾衣绳": "Always Show Clothesline",
         "自动隐藏晾衣绳": "Auto-hide Clothesline", "挂上文件或文件夹…": "Hang Files or Folders…",
         "最近文件…": "Recent Files…", "剪贴板挂载": "Clipboard", "自动挂上图片 / 截图": "Automatically Hang Images / Screenshots",

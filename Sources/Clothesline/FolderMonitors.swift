@@ -13,6 +13,20 @@ final class FolderMonitors {
     private let onUpdate: ([DownloadFile]) -> Void
     private let key = "monitoredFolderBookmarks"
 
+    var expirationPolicy: ItemExpirationPolicy {
+        let preferences = DisplayPreferences(defaults: defaults)
+        return ItemExpirationPolicy(lifetime: preferences.retentionLifetime)
+    }
+
+    /// Reapply preferences immediately, including when a longer lifetime restores items.
+    func refresh() {
+        var unique: [String: DownloadFile] = [:]
+        for file in snapshots.values.flatMap({ $0 }) { unique[file.path] = file }
+        onUpdate(unique.values.sorted {
+            $0.recency == $1.recency ? $0.path > $1.path : $0.recency > $1.recency
+        })
+    }
+
     static var downloads: URL {
         FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
     }
@@ -56,13 +70,11 @@ final class FolderMonitors {
         let watcher = DownloadsWatcher(folder: url, onUpdate: { [weak self] files in
             guard let self else { return }
             self.snapshots[path] = files
-            var unique: [String: DownloadFile] = [:]
-            for file in self.snapshots.values.flatMap({ $0 }) { unique[file.path] = file }
-            self.onUpdate(unique.values.sorted {
-                $0.recency == $1.recency ? $0.path > $1.path : $0.recency > $1.recency
-            })
+            self.refresh()
         }, onFailure: { [weak self] failure in
             self?.failures[path] = failure
+            // Keep aging cached items even while this directory is inaccessible.
+            if failure != nil { self?.refresh() }
         })
         watchers[path] = watcher
         watcher.start()

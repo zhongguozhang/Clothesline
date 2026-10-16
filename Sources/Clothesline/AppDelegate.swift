@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let loginItems = LoginItems()
     private let updateChecker = UpdateChecker()
     private let identityPanel = FileIdentityPanel()
+    private let preferences = DisplayPreferences()
+    private let settingsWindow = SettingsWindow()
+    private var revealController = LineRevealController()
     private var panel: LinePanel!
     private var statusItem: NSStatusItem!
     private var monitors: FolderMonitors?
@@ -16,9 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let recentDrawer = RecentDrawer()
     private var hotkey: HotKey?
     private var pointerTimer: Timer?
+    private var expirationTimer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private(set) var pinned = UserDefaults.standard.bool(forKey: "alwaysShowLine")
-    private var lastInside = Date.distantPast
     private var currentScreen: NSScreen?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -48,19 +51,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
-        monitors = FolderMonitors { [weak self] in self?.line.adopt($0) }
+        monitors = FolderMonitors { [weak self] files in
+            guard let self else { return }
+            self.line.adopt(files, expiration: self.monitors?.expirationPolicy ?? ItemExpirationPolicy())
+        }
         clipboard = ClipboardMonitor { [weak self] content, manual in
             try self?.line.attachClipboard(content, manual: manual)
         }
+        line.setExpirationPolicy(ItemExpirationPolicy(lifetime: preferences.retentionLifetime))
         clipboard?.start()
         monitors?.start()
         hotkey = HotKey { [weak self] in self?.togglePinned() }
-        pointerTimer = Timer.scheduledTimer(withTimeInterval: 0.10, repeats: true) { [weak self] _ in
+        pointerTimer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.pollPointer() }
         }
+        if let pointerTimer { RunLoop.main.add(pointerTimer, forMode: .common) }
+        expirationTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.line.refreshExpiration() }
+        }
+        if let expirationTimer { RunLoop.main.add(expirationTimer, forMode: .common) }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.monitors?.wake() }
+                MainActor.assumeIsolated {
+                    self?.revealController.reset()
+                    self?.monitors?.wake()
+                }
             }
     }
 
@@ -70,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         clipboard?.stop()
         line.clearClipboardStorage()
         pointerTimer?.invalidate()
+        expirationTimer?.invalidate()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
     }
 
@@ -98,17 +114,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func pollPointer() {
+        let now = ProcessInfo.processInfo.systemUptime
         // AppKit owns mouse tracking from mouseDown through the drag session.
         // Do not turn the source window click-through, hide/reposition it, or
         // move it to another screen while that tracking is in progress.
         if line.pressedID != nil || line.draggingID != nil || line.interactionHeld {
             identityPanel.hide()
-            lastInside = Date()
+            _ = revealController.reveal(atTop: false, overLine: false, isRevealed: line.revealed,
+                                        hasItems: !line.items.isEmpty, alwaysVisible: pinned,
+                                        interactionHeld: true, delay: preferences.hoverDelay, now: now)
             panel.ignoresMouseEvents = false
             return
         }
-        guard let screen = LinePanel.screenUnderPointer() else { return }
+        guard let screen = LinePanel.screenUnderPointer() else {
+            revealController.reset()
+            return
+        }
         if screen.frame != currentScreen?.frame {
+            revealController.reset()
+            if !pinned { line.revealed = false }
             currentScreen = screen
             panel.placeOnScreen(screen)
             recalculateCapacity()
@@ -133,11 +157,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else { identityPanel.hide() }
         let overPanel = panel.frame.contains(mouse)
 
-        if atTop || (line.revealed && (overPanel || overCard)) {
-            lastInside = Date()
-        }
-        let shouldReveal = (pinned || Date().timeIntervalSince(lastInside) < 0.75)
+        let shouldReveal = revealController.reveal(
+            atTop: atTop, overLine: overPanel || overCard, isRevealed: line.revealed,
+            hasItems: !line.items.isEmpty, alwaysVisible: pinned,
+            externalDrag: externalDragging, delay: preferences.hoverDelay, now: now)
         if shouldReveal != line.revealed { line.revealed = shouldReveal }
+        if !shouldReveal { identityPanel.hide() }
         // During an external mouse drag, expose the full rope as a drop target.
         let externalDrag = NSEvent.pressedMouseButtons & 1 != 0 && line.draggingID == nil
         panel.ignoresMouseEvents = !shouldReveal || (!overCard && !externalDrag)
@@ -146,16 +171,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func setAlwaysVisible(_ enabled: Bool) {
         pinned = enabled
         UserDefaults.standard.set(enabled, forKey: "alwaysShowLine")
+        revealController.reset()
         if pinned {
             panel?.placeOnScreen()
             line.revealed = true
         } else {
-            lastInside = Date.distantPast
             line.revealed = false
         }
     }
 
     private func togglePinned() { setAlwaysVisible(!pinned) }
+
+    private func showSettings(_ page: SettingsWindow.Page) {
+        settingsWindow.show(page, preferences: preferences) { [weak self] in
+            guard let self else { return }
+            self.revealController.reset()
+            self.line.setExpirationPolicy(ItemExpirationPolicy(lifetime: self.preferences.retentionLifetime))
+        }
+    }
 
     private func attachFolder() {
         let picker = NSOpenPanel()
@@ -196,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let autoHide = ClosureMenuItem("自动隐藏晾衣绳") { [weak self] in self?.setAlwaysVisible(false) }
         autoHide.state = pinned ? .off : .on
         menu.addItem(autoHide)
+        menu.addItem(ClosureMenuItem("悬停显示晾衣绳延迟…") { [weak self] in self?.showSettings(.hoverDelay) })
         menu.addItem(ClosureMenuItem("挂上文件或文件夹…") { [weak self] in self?.attachFolder() })
         menu.addItem(ClosureMenuItem("最近文件…") { [weak self] in
             guard let self else { return }; self.recentDrawer.show(line: self.line)
@@ -243,6 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let keepItem = NSMenuItem(title: AppLanguage.translate("保留文件数量"), action: nil, keyEquivalent: "")
         keepItem.submenu = keepSubmenu
         menu.addItem(keepItem)
+        menu.addItem(ClosureMenuItem("保留文件时间…") { [weak self] in self?.showSettings(.retention) })
 
         let sizeSubmenu = NSMenu(title: AppLanguage.translate("卡片尺寸"))
         for size in Layout.Size.allCases {
@@ -290,6 +325,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 AppLanguage.current = language
                 self?.line.objectWillChange.send()
                 self?.recentDrawer.refreshLanguage()
+                if self?.settingsWindow.window?.isVisible == true, let page = self?.settingsWindow.page {
+                    self?.showSettings(page)
+                }
             }
             item.state = AppLanguage.current == language ? .on : .off
             languages.addItem(item)

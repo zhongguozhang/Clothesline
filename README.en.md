@@ -47,6 +47,9 @@ The detailed features and usage instructions below primarily describe macOS; see
 - **Safe removal**: Taking cards down, clearing, or quitting does not delete, move, or overwrite originals. Only a separately confirmed Move to Trash action moves files or folders and their contents; restore them in Finder. Reset hidden records to show removed files again; replacing a download also allows it to reappear.
 - **Flexible display**: Alternating colorful clothespins and spring animations, automatic hiding or always-visible mode, adjustable item counts and card size, and saved preferences. Use `⌃⌥T` to toggle visibility.
 
+- **Hover delay (macOS source build)**: Hover to Show Clothesline Delay appears below Auto-hide Clothesline, with its own editor. Default: 0.0 seconds; range: 0.0–10.0 seconds, in 0.1-second steps. Leaving resets the timer. Files, folders and clipboard images/notes all follow it.
+- **Item retention (macOS source build)**: Item Retention Time appears below Items to Keep. Set one lifetime for watched files, folders and clipboard content; unlimited by default. Expiration only hides items, preserving originals and the system clipboard. Pins and manually hung files are kept; an empty rope stays hidden on ordinary hover.
+
 ## Quick reference
 
 | Action | Result |
