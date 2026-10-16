@@ -9,6 +9,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let loginItems = LoginItems()
     private let updateChecker = UpdateChecker()
     private let identityPanel = FileIdentityPanel()
+    private var revealController = RopeVisibilityController()
+    private let dragPasteboard = NSPasteboard(name: .drag)
+    private var fileDragTracker = ExternalFileDragTracker()
+    private let missionControl = MissionControlAvoidance()
+    private var avoidanceClearance: CGFloat = 0
     private var panel: LinePanel!
     private var statusItem: NSStatusItem!
     private var monitors: FolderMonitors?
@@ -18,11 +23,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pointerTimer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private(set) var pinned = UserDefaults.standard.bool(forKey: "alwaysShowLine")
-    private var lastInside = Date.distantPast
     private var currentScreen: NSScreen?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel = LinePanel(content: FileDropView(line: line))
+        panel.shouldHoldPosition = { [weak line] in
+            guard let line else { return false }
+            return line.pressedID != nil || line.draggingID != nil || line.interactionHeld
+                || NSEvent.pressedMouseButtons & 1 != 0
+        }
         line.showRecent = { [weak self] in
             guard let self else { return }; self.recentDrawer.show(line: self.line)
         }
@@ -55,12 +64,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         clipboard?.start()
         monitors?.start()
         hotkey = HotKey { [weak self] in self?.togglePinned() }
-        pointerTimer = Timer.scheduledTimer(withTimeInterval: 0.10, repeats: true) { [weak self] _ in
+        pointerTimer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.pollPointer() }
         }
+        if let pointerTimer { RunLoop.main.add(pointerTimer, forMode: .common) }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.monitors?.wake() }
+                MainActor.assumeIsolated {
+                    self?.revealController.reset()
+                    self?.missionControl.reset()
+                    self?.monitors?.wake()
+                }
             }
     }
 
@@ -98,24 +112,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func pollPointer() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let externalDragging = fileDragTracker.update(
+            isPressed: NSEvent.pressedMouseButtons & 1 != 0,
+            changeCount: dragPasteboard.changeCount,
+            hasFileURLs: dragPasteboard.types?.contains(.fileURL) == true)
         // AppKit owns mouse tracking from mouseDown through the drag session.
         // Do not turn the source window click-through, hide/reposition it, or
         // move it to another screen while that tracking is in progress.
         if line.pressedID != nil || line.draggingID != nil || line.interactionHeld {
             identityPanel.hide()
-            lastInside = Date()
+            _ = revealController.reveal(atTop: false, overLine: false, isRevealed: line.revealed,
+                                        alwaysVisible: pinned,
+                                        interactionHeld: true, now: now)
             panel.ignoresMouseEvents = false
             return
         }
-        guard let screen = LinePanel.screenUnderPointer() else { return }
+        guard let screen = LinePanel.screenUnderPointer() else {
+            revealController.reset()
+            return
+        }
         if screen.frame != currentScreen?.frame {
+            revealController.reset()
+            if !pinned { line.revealed = false }
             currentScreen = screen
-            panel.placeOnScreen(screen)
-            recalculateCapacity()
+            avoidanceClearance = 0
         }
         let mouse = NSEvent.mouseLocation
+        let bounds = MissionControlAvoidance.windowBounds(
+            for: screen.frame, primaryFrame: NSScreen.screens.first?.frame ?? screen.frame)
+        let clearance = missionControl.clearance(for: bounds, now: now,
+                                                responsive: pinned || line.revealed || externalDragging || avoidanceClearance > 0)
+        // Once lowered, don't move the drop target upward under an ongoing
+        // Finder drag, even if moving away from the edge closes Mission Control.
+        avoidanceClearance = externalDragging ? max(avoidanceClearance, clearance) : clearance
+        if panel.placeOnScreen(screen, avoidingTop: avoidanceClearance,
+                               animateReturn: line.revealed && !externalDragging) {
+            identityPanel.hide()
+            recalculateCapacity()
+            if line.revealed {
+                _ = revealController.reveal(atTop: false, overLine: false, isRevealed: true,
+                                            alwaysVisible: pinned,
+                                            interactionHeld: true, now: now)
+            }
+        }
         let top = screen.visibleFrame.maxY
-        let atTop = mouse.y >= top - 4 && mouse.y <= screen.frame.maxY + 1
+        let atScreenTop = mouse.y >= top - 4 && mouse.y <= screen.frame.maxY + 1
+        let avoidingMissionControl = avoidanceClearance > 0
         // Convert AppKit's bottom-up screen coordinates to SwiftUI's top-down
         // hosting-view coordinates, as used by HitRectsKey.
         let local = CGPoint(x: mouse.x - panel.frame.minX,
@@ -124,8 +167,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let hovered = line.items.first { item in
             line.hitRects[item.id]?.contains(local) == true
         }
-        let externalDragging = NSEvent.pressedMouseButtons & 1 != 0
-        if line.revealed, !externalDragging, let item = hovered, let rect = line.hitRects[item.id] {
+        if line.revealed, !externalDragging, !panel.isReturning,
+           let item = hovered, let rect = line.hitRects[item.id] {
             let anchor = NSRect(x: panel.frame.minX + rect.minX,
                                 y: panel.frame.maxY - rect.maxY,
                                 width: rect.width, height: rect.height)
@@ -133,24 +176,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else { identityPanel.hide() }
         let overPanel = panel.frame.contains(mouse)
 
-        if atTop || (line.revealed && (overPanel || overCard)) {
-            lastInside = Date()
-        }
-        let shouldReveal = (pinned || Date().timeIntervalSince(lastInside) < 0.75)
+        let shouldReveal = revealController.reveal(
+            atTop: atScreenTop, overLine: overPanel || overCard, isRevealed: line.revealed,
+            alwaysVisible: pinned,
+            interactionHeld: panel.isReturning,
+            externalDrag: externalDragging, avoidingMissionControl: avoidingMissionControl,
+            now: now)
         if shouldReveal != line.revealed { line.revealed = shouldReveal }
+        if !shouldReveal { identityPanel.hide() }
         // During an external mouse drag, expose the full rope as a drop target.
-        let externalDrag = NSEvent.pressedMouseButtons & 1 != 0 && line.draggingID == nil
+        let externalDrag = externalDragging && line.draggingID == nil
         panel.ignoresMouseEvents = !shouldReveal || (!overCard && !externalDrag)
     }
 
     func setAlwaysVisible(_ enabled: Bool) {
         pinned = enabled
         UserDefaults.standard.set(enabled, forKey: "alwaysShowLine")
+        revealController.reset()
         if pinned {
-            panel?.placeOnScreen()
+            panel?.placeOnScreen(avoidingTop: avoidanceClearance)
             line.revealed = true
         } else {
-            lastInside = Date.distantPast
             line.revealed = false
         }
     }
@@ -250,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             switch size { case .small: title = "小"; case .medium: title = "中"; case .large: title = "大" }
             let item = ClosureMenuItem(title) { [weak self] in
                 Layout.size = size
-                self?.panel.placeOnScreen()
+                self?.panel.placeOnScreen(avoidingTop: self?.avoidanceClearance ?? 0)
                 self?.recalculateCapacity()
             }
             item.state = Layout.size == size ? .on : .off

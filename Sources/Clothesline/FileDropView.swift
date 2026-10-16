@@ -31,4 +31,5 @@ final class FileDropView: NSHostingView<LineView> {
         catch { NSAlert(error: error).runModal(); return false }
     }
     override func concludeDragOperation(_ sender: NSDraggingInfo?) { line.interactionHeld = false }
+    override func draggingEnded(_ sender: NSDraggingInfo) { line.interactionHeld = false }
 }

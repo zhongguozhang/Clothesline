@@ -5,5 +5,5 @@ export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$PWD/.build/ModuleCac
 export SWIFT_MODULECACHE_PATH="${SWIFT_MODULECACHE_PATH:-$CLANG_MODULE_CACHE_PATH}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-swiftc -parse-as-library $(find Sources/Clothesline -name '*.swift' ! -name main.swift) Tests/MacIntegrationTests.swift Tests/AppServicesTests.swift -o "$TMP/tests"
+swiftc -parse-as-library $(find Sources/Clothesline -name '*.swift' ! -name main.swift) Tests/MacIntegrationTests.swift Tests/AppServicesTests.swift Tests/MissionControlTests.swift Tests/MissionControlReplayTests.swift Tests/MissionControlReturnTests.swift -o "$TMP/tests"
 "$TMP/tests"

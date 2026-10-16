@@ -78,5 +78,6 @@ struct DownloadIndexTests {
         check(directoryGate.completed([directory], now: now.addingTimeInterval(10)).isEmpty, "folder needs stable samples")
         check(directoryGate.completed([directory], now: now.addingTimeInterval(11)).count == 1, "stable folder qualifies")
         print("PASS: name filters, stable samples, quiet period, rename/reset safety, folder scanning")
+        try testMissionControlHiddenReveal()
     }
 }

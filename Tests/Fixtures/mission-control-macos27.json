@@ -1,0 +1,125 @@
+{
+  "description": "Numeric window metadata from user-confirmed macOS 27.0.1 Mission Control, 2026-10-16. PIDs replaced; thumbnail windows omitted. No titles or contents.",
+  "screens": [
+    [
+      0,
+      0,
+      1728,
+      1117
+    ],
+    [
+      -438,
+      -1152,
+      2048,
+      1152
+    ]
+  ],
+  "idle": [
+    {
+      "kCGWindowOwnerPID": 42,
+      "kCGWindowLayer": 20,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 1117
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": -2147483624,
+      "kCGWindowBounds": {
+        "X": -438,
+        "Y": -1152,
+        "Width": 2048,
+        "Height": 1152
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": -2147483624,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 1117
+      }
+    }
+  ],
+  "active": [
+    {
+      "kCGWindowOwnerPID": 42,
+      "kCGWindowLayer": 20,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 1117
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": 19,
+      "kCGWindowBounds": {
+        "X": -438,
+        "Y": -1152,
+        "Width": 2048,
+        "Height": 1152
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": 19,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 1117
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": 14,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 244
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": 14,
+      "kCGWindowBounds": {
+        "X": -438,
+        "Y": -1152,
+        "Width": 2048,
+        "Height": 226
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": -2147483624,
+      "kCGWindowBounds": {
+        "X": -438,
+        "Y": -1152,
+        "Width": 2048,
+        "Height": 1152
+      }
+    },
+    {
+      "kCGWindowOwnerPID": 43,
+      "kCGWindowLayer": -2147483624,
+      "kCGWindowBounds": {
+        "X": 0,
+        "Y": 0,
+        "Width": 1728,
+        "Height": 1117
+      }
+    }
+  ],
+  "expectedClearance": [
+    260,
+    242
+  ]
+}

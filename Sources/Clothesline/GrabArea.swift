@@ -150,6 +150,10 @@ final class GrabView: NSView, NSDraggingSource, NSSharingServicePickerDelegate {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        // Common-mode timers keep running while a context menu tracks.
+        // Keep its card alive until the selected action has finished.
+        onPressChange(true)
+        defer { onPressChange(false) }
         NSMenu.popUpContextMenu(menuProvider(), with: event, for: self)
     }
 

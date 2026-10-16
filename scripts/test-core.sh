@@ -5,5 +5,5 @@ export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$PWD/.build/ModuleCac
 export SWIFT_MODULECACHE_PATH="${SWIFT_MODULECACHE_PATH:-$CLANG_MODULE_CACHE_PATH}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-swiftc Sources/Clothesline/DownloadIndex.swift Tests/DownloadIndexTests.swift -o "$TMP/tests"
+swiftc Sources/Clothesline/DownloadIndex.swift Sources/Clothesline/RopeVisibilityController.swift Tests/DownloadIndexTests.swift Tests/MissionControlRevealTests.swift -o "$TMP/tests"
 "$TMP/tests"

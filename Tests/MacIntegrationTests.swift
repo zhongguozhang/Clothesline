@@ -17,6 +17,9 @@ struct MacIntegrationTests {
         }
         AppLanguage.current = .chinese
         try testAppServices()
+        testMissionControlAvoidance()
+        try testMissionControlReplay()
+        try testHiddenDuringMissionControlReturn()
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Clothesline-acceptance-\(UUID())")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -120,6 +123,36 @@ struct MacIntegrationTests {
         dragLine.draggingID = nil
         dragLine.updateVisibleItems()
         precondition(dragLine.items.isEmpty, "pending scan applied after drag")
+        // Pointer polling now runs in common modes, including menu tracking.
+        // Moving into a context menu must retain its source and visible rope.
+        dragLine.adopt(try DownloadIndex.scan(folder).filter { !$0.isDirectory })
+        let menuSource = dragLine.items[0].id
+        let menuView = GrabView()
+        var menuVisibility = RopeVisibilityController()
+        _ = menuVisibility.reveal(atTop: true, overLine: false, isRevealed: false,
+                                  alwaysVisible: false, now: 0)
+        var heldDuringMenu = false
+        menuView.onPressChange = {
+            dragLine.pressedID = $0 ? menuSource : nil
+            if !$0 { dragLine.updateVisibleItems() }
+        }
+        menuView.menuProvider = {
+            let shown = menuVisibility.reveal(
+                atTop: false, overLine: false, isRevealed: true, alwaysVisible: false,
+                interactionHeld: dragLine.pressedID != nil, now: 1)
+            dragLine.adopt([])
+            heldDuringMenu = shown && dragLine.items.contains { $0.id == menuSource }
+            return NSMenu()
+        }
+        let menuEvent = NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [],
+                                          timestamp: 0, windowNumber: 0, context: nil,
+                                          eventNumber: 0, clickCount: 1, pressure: 0)!
+        menuView.rightMouseDown(with: menuEvent)
+        guard heldDuringMenu && dragLine.pressedID == nil && dragLine.items.isEmpty else {
+            print("FAIL: context menu must retain its visible source until tracking ends")
+            throw NSError(domain: "MissionControlMenu", code: 1)
+        }
+        print("PASS: context menu retains the visible rope and source, then releases pending refresh")
         let suite = "Clothesline-Multi-\(UUID())"
         let isolatedDefaults = UserDefaults(suiteName: suite)!
         defer { isolatedDefaults.removePersistentDomain(forName: suite) }
