@@ -446,6 +446,22 @@ final class Line: ObservableObject {
         else if item.isClipboard, let data = try? Data(contentsOf: item.url) { pb.setData(data, forType: .png) }
         else { pb.writeObjects([item.url as NSURL]) }
         ClipboardMonitor.markOwned(pb)
+        showCopiedFeedback(id)
+    }
+
+    enum FileTextField { case name, fullPath }
+
+    func copyFileText(_ id: UUID, _ field: FileTextField, to pasteboard: NSPasteboard = .general) {
+        guard let item = items.first(where: { $0.id == id }), !item.isClipboard else { return }
+        // Copy the card's reference as plain text, including for unavailable sources.
+        let text = field == .name ? item.url.lastPathComponent : item.url.standardizedFileURL.path
+        pasteboard.clearContents()
+        guard pasteboard.setString(text, forType: .string) else { return }
+        ClipboardMonitor.markOwned(pasteboard)
+        showCopiedFeedback(id)
+    }
+
+    private func showCopiedFeedback(_ id: UUID) {
         copiedID = id
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
             if self?.copiedID == id { self?.copiedID = nil }

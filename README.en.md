@@ -32,6 +32,7 @@ The detailed features and usage instructions below primarily describe macOS; see
 
 ## Features
 
+- **Copy names and paths (macOS source build)**: Right-click a file or folder to copy its name (including extension) or full absolute path as plain text. Copy feedback is preserved, and owned copies do not feed back into clipboard notes.
 - **Watch downloads**: Watch Downloads and multiple added folders, showing recent files and top-level folders. Watched folders persist across restarts; polling covers missed events and wake from sleep.
 - **Detect completed downloads**: Filter hidden files, symbolic links, and temporary items such as `.crdownload`, `.download`, `.part`, and `.tmp`. Display files after two stable scans, at least two seconds without changes, and no companion temporary download.
 - **Hang files and folders**: Drag one or multiple items from Finder or select them from the menu. Store persistent references while originals stay in place.

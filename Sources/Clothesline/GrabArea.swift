@@ -45,6 +45,8 @@ struct GrabArea: NSViewRepresentable {
             } else {
                 menu.addItem(ClosureMenuItem("在 Finder 中显示") { line.reveal(id) })
                 menu.addItem(ClosureMenuItem("复制文件") { line.copy(id) })
+                menu.addItem(ClosureMenuItem("复制文件名") { line.copyFileText(id, .name) })
+                menu.addItem(ClosureMenuItem("复制完整路径") { line.copyFileText(id, .fullPath) })
                 menu.addItem(ClosureMenuItem("重命名…") { line.requestRename(id) })
                 let pin = ClosureMenuItem(item.pinned ? "取消固定" : "固定") { line.togglePin(id) }
                 pin.state = item.pinned ? .on : .off

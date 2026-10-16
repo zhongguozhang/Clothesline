@@ -248,6 +248,25 @@ struct MacIntegrationTests {
         clipboardBoard.clearContents(); clipboardBoard.setString("own copy", forType: .string)
         ClipboardMonitor.markOwned(clipboardBoard); intake.poll()
         precondition(captures == beforeOwnedCopy, "own copy ignored")
+        // Textual file references must paste as text and never become new notes.
+        let referenceFolder = folder.appendingPathComponent("资料 #1", isDirectory: true)
+        try FileManager.default.createDirectory(at: referenceFolder, withIntermediateDirectories: false)
+        let referenceFile = referenceFolder.appendingPathComponent("报告 100%.txt")
+        try bytes.write(to: referenceFile)
+        let references = Line()
+        try references.attachFiles([referenceFile, referenceFolder])
+        for url in [referenceFile, referenceFolder] {
+            let id = references.items.first { $0.file.path == url.standardizedFileURL.path }!.id
+            references.copyFileText(id, .name, to: clipboardBoard)
+            precondition(clipboardBoard.string(forType: .string) == url.lastPathComponent,
+                         "copy file/folder name retains Unicode, spaces and extension")
+            intake.poll()
+            references.copyFileText(id, .fullPath, to: clipboardBoard)
+            precondition(clipboardBoard.string(forType: .string) == url.standardizedFileURL.path &&
+                         !(clipboardBoard.types ?? []).contains(.fileURL), "full path is unescaped plain text")
+            intake.poll()
+        }
+        precondition(captures == beforeOwnedCopy, "copied names and paths do not feed back into clipboard notes")
         intake.setTextEnabled(false)
         clipboardBoard.clearContents(); clipboardBoard.setString("manual-only note", forType: .string)
         intake.poll()

@@ -3,6 +3,12 @@
 更新：2026-10-13（Asia/Shanghai）
 状态：本地候选版；Release 构建、核心与 macOS 集成测试通过，完整 UI 验收待完成。
 
+## 复制文件名与完整路径（2026-10-16，macOS 源码开发版）
+
+文件及文件夹卡片右键新增“复制文件名”和“复制完整路径”。名称保留扩展名，路径为标准绝对路径纯文本，沿用复制反馈与自身剪贴板标记；剪贴板图片/便签菜单保持内容复制。
+
+验证通过：scripts/test-core.sh、scripts/test-macos.sh、scripts/build-app.sh release native。覆盖独立剪贴板验证文件/文件夹、中文、空格、特殊字符、扩展名、绝对路径纯文本及自身复制回流抑制。未声称真实跨应用粘贴 UI 已验收。 本分支以 d48feca 为基线，可单独构建，不依赖其他功能分支。Windows 与发行资产未改动。
+
 ## 架构与功能
 SwiftPM 可执行目标，macOS 14+；AppKit 浮层与菜单栏、SwiftUI 卡片、Quick Look、Carbon 快捷键。DownloadsWatcher 使用 vnode 事件及 2 秒轮询；DownloadIndex 扫描顶层文件与目录，排除隐藏项、符号链接及临时下载名，使用两次稳定样本和 2 秒静默期。
 

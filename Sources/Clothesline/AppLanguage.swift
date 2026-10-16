@@ -31,6 +31,7 @@ enum AppLanguage: String, CaseIterable {
         "快速预览": "Quick Look", "打开文件": "Open File", "复制图片": "Copy Image", "复制文字": "Copy Text",
         "查看 / 编辑便签…": "View / Edit Note…", "另存为…": "Save As…", "在 Finder 中显示": "Show in Finder",
         "复制文件": "Copy File", "重命名…": "Rename…", "取消固定": "Unpin", "固定": "Pin", "分享…": "Share…",
+        "复制文件名": "Copy File Name", "复制完整路径": "Copy Full Path",
         "从晾衣绳取下（保留原文件）": "Take Down (Keep Original)", "移到废纸篓…": "Move to Trash…",
         "最近文件": "Recent Files", "搜索文件名称": "Search file names", "挂上": "Hang", "打开": "Open",
         "暂无最近文件": "No recent files", "没有匹配的文件": "No matching files",
