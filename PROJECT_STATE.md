@@ -172,3 +172,11 @@ main 与 Windows 分支已核验到 430dce6，包含所有此前 Windows 开发�
 GrabArea 按卡片目录类型分派单击：文件夹调用既有 open（先验证源可访问性，再交给系统打开），普通文件仍调用 quickLook。双击、拖拽及取下没有改动。中英文 README 增加文件夹单击说明。
 
 核心和 macOS 集成回归通过，包含真实目录监听、目录挂载及源文件保留；这些测试不代表鼠标单击 UI 实测。Release 通用构建结果见最新交接。既有粘贴板/CoreDrag/颜色空间诊断仍出现，未导致测试失败。现有 GitHub 安装包尚未重新发行。
+
+## 菜单栏图标（2026-11-03）
+
+菜单栏改用独立 20×18 pt AppKit 矢量模板图标：去除底板、渐变与阴影，放大 T 恤轮廓并保留绳与夹子；isTemplate 由系统适配明暗及选中状态。彩色应用图标、安装包图标和 README 图片不变。
+
+实际明暗壁纸、选中状态及小尺寸视觉效果待 UI 验收；未更新发行安装包。验证结果见最新交接。
+
+本轮验证：scripts/test-core.sh、scripts/test-macos.sh、scripts/build-app.sh release 均通过，包含 arm64/x86_64。既有粘贴板/CoreDrag/颜色空间诊断未导致失败。未将集成回归视作 UI 实测。

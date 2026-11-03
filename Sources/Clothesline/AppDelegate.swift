@@ -36,13 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         line.revealed = pinned
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🧺"
-        if let url = Bundle.main.url(forResource: "Clothesline", withExtension: "icns"),
-           let icon = NSImage(contentsOf: url) {
-            icon.size = NSSize(width: 18, height: 18)
-            statusItem.button?.title = ""
-            statusItem.button?.image = icon
-        }
+        statusItem.button?.title = ""
+        statusItem.button?.image = MenuBarIcon.make()
         statusItem.button?.toolTip = "Clothesline · 晾衣绳"
         let menu = NSMenu()
         menu.delegate = self
