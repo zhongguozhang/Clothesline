@@ -25,6 +25,7 @@ struct Pegged: Identifiable, Equatable {
 @MainActor
 final class Line: ObservableObject {
     @Published private(set) var items: [Pegged] = []
+    @Published var selectedIDs: Set<UUID> = []
     @Published var draggingID: UUID?
     @Published var pressedID: UUID?
     @Published var copiedID: UUID?
@@ -134,6 +135,7 @@ final class Line: ObservableObject {
         }
         if items.map(\.id) != newItems.map(\.id) { scroll = 0 }
         if items != newItems { items = newItems }
+        selectedIDs.formIntersection(Set(newItems.map(\.id)))
     }
 
     func togglePin(_ id: UUID) {

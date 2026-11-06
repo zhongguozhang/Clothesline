@@ -21,7 +21,18 @@ struct GrabArea: NSViewRepresentable {
         view.canDrag = { line.validateAvailable(id) }
         view.dragImage = item.thumb
         view.dragText = item.noteText
+        view.onSelect = {
+            if line.selectedIDs.contains(id) { line.selectedIDs.remove(id) }
+            else { line.selectedIDs.insert(id) }
+        }
+        view.dragFiles = {
+            let ids = line.selectedIDs.contains(id) ? line.selectedIDs : [id]
+            let selected = line.items.filter { ids.contains($0.id) }
+            guard selected.allSatisfy({ line.validateAvailable($0.id) }) else { return [] }
+            return selected.map(\.url)
+        }
         view.onClick = {
+            line.selectedIDs.removeAll()
             if item.file.isDirectory { line.open(id) }
             else { line.quickLook(id) }
         }
@@ -91,6 +102,8 @@ final class GrabView: NSView, NSDraggingSource, NSSharingServicePickerDelegate {
     var dragText: String?
     var canDrag: () -> Bool = { true }
     var onClick: () -> Void = {}
+    var onSelect: () -> Void = {}
+    var dragFiles: () -> [URL] = { [] }
     var onDoubleClick: () -> Void = {}
     var onDismiss: () -> Void = {}
     var onPressChange: (Bool) -> Void = { _ in }
@@ -115,20 +128,24 @@ final class GrabView: NSView, NSDraggingSource, NSSharingServicePickerDelegate {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let start = downPoint, !dragging, !pressedCross, let file else { return }
+        guard let start = downPoint, !dragging, !pressedCross, file != nil else { return }
         let point = event.locationInWindow
         guard hypot(point.x - start.x, point.y - start.y) > 5 else { return }
         guard canDrag() else { return }
+        let files = dragFiles()
+        guard !files.isEmpty else { return }
         dragging = true
         pendingSingleClick?.cancel()
         onDragChange(true)
         onPressChange(false)
-        let payload = Self.filePasteboardItem(file)
-        if let dragText { payload.setString(dragText, forType: .string) }
-        let dragged = NSDraggingItem(pasteboardWriter: payload)
-        // A subtle, system-native drag image (file thumbnail/icon).
-        dragged.setDraggingFrame(bounds, contents: dragImage)
-        let session = beginDraggingSession(with: [dragged], event: event, source: self)
+        let dragged = files.map { url in
+            let payload = Self.filePasteboardItem(url)
+            if files.count == 1, let dragText { payload.setString(dragText, forType: .string) }
+            let item = NSDraggingItem(pasteboardWriter: payload)
+            item.setDraggingFrame(bounds, contents: dragImage)
+            return item
+        }
+        let session = beginDraggingSession(with: dragged, event: event, source: self)
         session.animatesToStartingPositionsOnCancelOrFail = true
     }
 
@@ -139,6 +156,9 @@ final class GrabView: NSView, NSDraggingSource, NSSharingServicePickerDelegate {
         if pressedCross {
             pendingSingleClick?.cancel()
             onDismiss()
+        } else if event.modifierFlags.contains(.command) {
+            pendingSingleClick?.cancel()
+            onSelect()
         } else if event.clickCount >= 2 {
             pendingSingleClick?.cancel()
             onDoubleClick()

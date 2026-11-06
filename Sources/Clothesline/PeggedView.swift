@@ -62,6 +62,7 @@ struct PeggedView: View {
         .padding(6)
         .frame(width: Layout.cardWidth - 8)
         .glassFrame(cornerRadius: 15)
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.accentColor, lineWidth: line.selectedIDs.contains(item.id) ? 3 : 0))
         .shadow(color: .black.opacity(hovering ? 0.26 : 0.18), radius: hovering ? 14 : 10, y: hovering ? 8 : 5)
         .scaleEffect(pressed ? 0.95 : (hovering ? 1.035 : 1), anchor: .top)
         .animation(.spring(response: 0.30, dampingFraction: 0.65), value: hovering)
@@ -142,8 +143,11 @@ struct Clothespin: View {
                 .stroke(LinearGradient(colors: [Color.white.opacity(0.9), Color.black.opacity(0.18)],
                                        startPoint: .top, endPoint: .bottom), lineWidth: 0.6))
             .overlay(alignment: .top) {
-                Capsule().fill(Color.black.opacity(0.32))
-                    .frame(width: 5, height: 1.4).padding(.top, 8.5)
+                VStack(spacing: 1) {
+                    Capsule().fill(Color.white.opacity(0.8)).frame(width: 8, height: 1.2)
+                    Capsule().fill(Color.black.opacity(0.55)).frame(width: 8, height: 1.5)
+                    Capsule().fill(Color.white.opacity(0.55)).frame(width: 8, height: 1)
+                }.padding(.top, 11)
             }
             .shadow(color: .black.opacity(0.30), radius: 2, y: 1.5)
             .allowsHitTesting(false)

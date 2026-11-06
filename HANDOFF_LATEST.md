@@ -1,9 +1,5 @@
-# 最新交接：菜单栏图标
+# 最新交接：多选拖出与夹子
 
-2026-11-03（Asia/Shanghai）。菜单栏改用独立 20×18 pt AppKit 矢量模板图标：去除底板、渐变与阴影，放大 T 恤轮廓并保留绳与夹子；isTemplate 由系统适配明暗及选中状态。彩色应用图标、安装包图标和 README 图片不变。
+2026-11-06。Command 点选卡片形成多选，选中卡片拖出多文件，卡片边框显示选择状态；夹子增加弹簧细节。需要实际验证邮件及第三方应用批量接收、混合剪贴板内容及视觉体验。
 
-新增 MenuBarIcon.swift，AppDelegate 不再将完整 icns 缩为菜单栏图标。起始 git fetch 成功，本地与 origin/main 无分叉。
-
-下一步：验收浅色/深色菜单栏与菜单选中效果；本轮不发行新 DMG。
-
-本轮验证：scripts/test-core.sh、scripts/test-macos.sh、scripts/build-app.sh release 均通过，包含 arm64/x86_64。既有粘贴板/CoreDrag/颜色空间诊断未导致失败。未将集成回归视作 UI 实测。
+核心、macOS 集成回归及 Release 双架构构建通过。远端 fetch 连接超时，尚未核实远端最新状态，提交及同步待网络恢复。
