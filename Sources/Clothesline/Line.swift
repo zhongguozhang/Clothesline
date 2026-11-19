@@ -114,7 +114,9 @@ final class Line: ObservableObject {
         for file in combined + missing { unique[file.path] = (try? DownloadIndex.read(file.url)) ?? file }
         let ordinary = (combined + missing).compactMap { unique.removeValue(forKey: $0.path) }
             .filter { !pinPaths.contains($0.path) && !dismissed.contains($0.fingerprint) }
-        let selected = Array((pins.map(\.file) + ordinary.prefix(max(0, maxItems - pins.count))).reversed())
+        let availablePins = pins.map(\.file).filter { (try? DownloadIndex.read($0.url)) != nil }
+        let availableOrdinary = ordinary.filter { (try? DownloadIndex.read($0.url)) != nil }
+        let selected = Array((availablePins + availableOrdinary.prefix(max(0, maxItems - availablePins.count))).reversed())
         let previous = Dictionary(uniqueKeysWithValues: items.map { ($0.file.fingerprint, $0) })
         var newItems: [Pegged] = []
         for file in selected {
@@ -171,7 +173,7 @@ final class Line: ObservableObject {
         guard (try? DownloadIndex.read(item.url)) != nil else {
             updateVisibleItems()
             let alert = NSAlert(); alert.messageText = AppLanguage.translate("源文件不存在或无法访问")
-            alert.informativeText = item.url.path + AppLanguage.text("\n请检查文件位置或访问权限；可取下失效卡片。", "\nCheck the file location or permissions; you can take down this card.")
+            alert.informativeText = item.url.path + AppLanguage.text("\n请检查文件位置或访问权限。", "\nCheck the file location or permissions.")
             alert.runModal(); return false
         }
         return true
